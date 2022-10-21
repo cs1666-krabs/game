@@ -14,8 +14,8 @@ const PLAYER_ASSET: &str = "Ferris.png";
 const PLAYER_SIZE: f32 = 32.;
 const PLAYER_START_COORDS: [f32; 3] = [0., 0., 2.];
 const PLAYER_SPEED: f32 = 500.;
-const PLAYER_JUMP_DURATION: f32 = 0.1; //seconds
-const GRAVITY: f32 = -650.0;
+const PLAYER_JUMP_DURATION: f32 = 0.3; //seconds
+const GRAVITY: f32 = -300.0;
 const CAMERA_BOUNDS_SIZE: [f32; 2] = [1000., 500.];
 
 #[derive(Component)]
@@ -184,11 +184,13 @@ fn handle_movement(
             if player_collision.bottom.is_some() {
                 player_transform.translation.y = player_collision.bottom.unwrap();
             }
+            
         }
 
-        //Handles Gravity
-        player_transform.translation.y += GRAVITY * time.delta_seconds();
-
+        //lse{
+            //Handles Gravity
+            player_transform.translation.y += GRAVITY * time.delta_seconds();
+        //}
         if let Some(ref terrain) = terrain {
             let player_collision =
                 get_collisions(&player_transform, terrain, input.pressed(KeyCode::F7));
@@ -219,12 +221,12 @@ fn get_collisions(
     for x_index in (cmp::max(1, x_block_index) - 1)..=(cmp::min(x_block_index + 1, CHUNK_WIDTH - 1))
     {
         for y_index in
-            (cmp::max(1, y_block_index) - 1)..=(cmp::min(y_block_index + 1, CHUNK_WIDTH - 1))
+            (cmp::max(1, y_block_index) - 1)..=y_block_index+1//(cmp::min(y_block_index + 1, CHUNK_HEIGHT - 1))
         {
             let chunk_number = y_index / CHUNK_HEIGHT;
             let chunk_y_index = y_index - (chunk_number * CHUNK_HEIGHT);
 
-            let block = terrain.chunks[chunk_number].blocks[x_index][chunk_y_index];
+            let block = terrain.chunks[chunk_number].blocks[chunk_y_index][x_index];
             if block.is_some() && block.unwrap().entity.is_some() {
                 let block_pos = Vec3 {
                     x: to_world_point_x(x_index),

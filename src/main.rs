@@ -5,6 +5,7 @@ mod menu;
 mod player;
 mod states;
 mod world;
+mod procedural_functions;
 
 const TITLE: &str = "The Krusty Krabs";
 const WIN_W: f32 = 1280.;
@@ -25,6 +26,7 @@ fn main() {
             height: WIN_H,
             ..default()
         })
+        .insert_resource(ClearColor(Color::rgb(0.0, 0.6, 0.8)))
         .add_startup_system(|mut c: Commands| {
             c.spawn_bundle(Camera2dBundle::default())
                 .insert(CharacterCamera);
@@ -33,6 +35,7 @@ fn main() {
             title: "Game".to_string(),
             width: 1280.,
             height: 720.,
+            
             ..default()
         })
         .add_plugin(world::WorldPlugin)

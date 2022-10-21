@@ -2,13 +2,14 @@ use bevy::prelude::*;
 use std::fs::*;
 use std::io::Write;
 
-use crate::states;
+use crate::{states, procedural_functions};
+
 
 use bincode::{Decode, Encode};
 use rand::Rng;
 
 pub const CHUNK_HEIGHT: usize = 32;
-pub const CHUNK_WIDTH: usize = 32;
+pub const CHUNK_WIDTH: usize = 128;
 
 /// This is the bincode config that we should use everywhere
 /// TODO: move to a better location
@@ -42,7 +43,8 @@ pub fn create_world(mut commands: Commands, assets: Res<AssetServer>) {
     let mut terrain = Terrain::empty();
 
     // Generate one chunk
-    spawn_chunk(0, &mut commands, assets, &mut terrain);
+    create_surface_chunk(&mut commands, &assets, &mut terrain);
+    spawn_chunk(1, &mut commands, assets, &mut terrain);
 
     let locations_to_destroy = [(5, 5), (5, 5), (300, 300), (5, 500), (2, 8)];
 
@@ -212,7 +214,7 @@ pub fn spawn_chunk(
     // Loop through entire chunk (2D Array)
     for x in 0..CHUNK_WIDTH {
         for y in 0..CHUNK_HEIGHT {
-            let block_opt = &mut chunk.blocks[x][y];
+            let block_opt = &mut chunk.blocks[y][x];
 
             // if there is a block at this location
             if let Some(block) = block_opt {
@@ -243,6 +245,59 @@ pub fn spawn_chunk(
 
     // add the chunk to our terrain resource
     terrain.chunks.push(chunk);
+}
+
+
+pub fn create_surface_chunk(
+    commands: &mut Commands,
+    assets: &Res<AssetServer>,
+    terrain: &mut Terrain
+){
+    let mut chunk = Chunk::new(0);
+
+    let random_vals = procedural_functions::generate_random_values(
+        82981925815, 
+        16,
+        1,
+        16,
+        );
+    // Loop through entire chunk (2D Array)
+    for x in 0..CHUNK_WIDTH {
+        for y in procedural_functions::slice_pos_x(x,&random_vals,10).round() as usize-1..CHUNK_HEIGHT {
+            info!(y);
+            let block_opt = &mut chunk.blocks[y][x];
+
+            // if there is a block at this location
+            if let Some(block) = block_opt {
+                // spawn in the sprite for the block
+                let entity = commands
+                    .spawn()
+                    .insert_bundle(SpriteBundle {
+                        texture: assets.load(block.block_type.image_file_path()),
+                        transform: Transform {
+                            translation: Vec3::from_array([
+                                to_world_point_x(x),
+                                to_world_point_y(y, 0),
+                                1.,
+                            ]),
+                            ..default()
+                        },
+                        ..default()
+                    })
+                    .insert(RenderedBlock)
+                    .id();
+
+                // link the entity to the block
+                block.entity = Option::Some(entity);
+            }
+            // else there is no block and we don't have to spawn any sprite
+        }
+    }
+
+    // add the chunk to our terrain resource
+    terrain.chunks.push(chunk);
+
+
 }
 
 #[derive(Debug)]
@@ -276,7 +331,7 @@ pub fn destroy_block(
     for chunk in &mut terrain.chunks {
         if chunk.chunk_number == (chunk_number as u64) {
             // we have found our chunk
-            let block_opt = &mut chunk.blocks[x][block_y_in_chunk];
+            let block_opt = &mut chunk.blocks[block_y_in_chunk][x];
 
             match block_opt {
                 Some(block) => {
