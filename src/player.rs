@@ -53,7 +53,8 @@ impl Decode for Player {
 }
 
 /// Contains all inputs that the client needs to tell the server
-#[derive(Encode, Decode, Clone, Debug)]
+/// TODO: refactor to enum?
+#[derive(Encode, Decode, Clone, Debug, Default)]
 pub struct PlayerInput {
     pub left: bool,
     pub right: bool,

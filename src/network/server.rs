@@ -1,5 +1,9 @@
 use super::*;
-use crate::{player::PlayerInput, states, world::Terrain};
+use crate::{
+    player::PlayerInput,
+    states,
+    world::{self, Terrain},
+};
 use bevy::prelude::*;
 use iyes_loopless::prelude::*;
 use std::{
@@ -33,6 +37,8 @@ struct ClientInfo {
     bodies: Vec<ServerBodyElem>,
     /// How many frames until we drop it
     until_drop: u64,
+    /// Player inputs
+    inputs: PlayerInput,
 }
 
 impl ClientInfo {
@@ -42,6 +48,7 @@ impl ClientInfo {
             last_ack: 0,
             bodies: Vec::with_capacity(DEFAULT_BODIES_VEC_CAPACITY),
             until_drop: FRAME_DIFFERENCE_BEFORE_DISCONNECT,
+            inputs: PlayerInput::default(),
         }
     }
 }
@@ -141,6 +148,11 @@ impl Plugin for ServerPlugin {
             server_handle_messages
                 .run_in_state(states::server::GameState::Running)
                 .label("handle_messages"),
+        )
+        .add_fixed_timestep_system(
+            GAME_TICK_LABEL,
+            0,
+            || {}, // TODO: simulate physics
         );
 
         // TODO: add run condition to only run if self.clients.len() > 0
@@ -151,6 +163,14 @@ impl Plugin for ServerPlugin {
             increase_network_tick
                 .run_in_state(states::server::GameState::Running)
                 .label("increase_network_tick"),
+        )
+        .add_fixed_timestep_system(
+            NETWORK_TICK_LABEL,
+            0,
+            process_player_mining
+                .run_in_state(states::server::GameState::Running)
+                .label("process_player_mining")
+                .after("increase_network_tick"),
         )
         .add_fixed_timestep_system(
             NETWORK_TICK_LABEL,
@@ -188,10 +208,6 @@ fn create_server(mut commands: Commands) {
 
     commands.insert_resource(server);
 
-    let input_map: HashMap<SocketAddr, PlayerInput> = HashMap::new();
-
-    commands.insert_resource(input_map);
-
     info!("server created");
 }
 
@@ -204,16 +220,41 @@ fn increase_network_tick(mut server: ResMut<Server>) {
     server.sequence += 1;
 }
 
-/// Server system
-fn server_handle_messages(
-    mut server: ResMut<Server>,
-    mut input_map: ResMut<HashMap<SocketAddr, PlayerInput>>,
+fn process_player_mining(
+    server: Res<Server>,
+    mut terrain: ResMut<Terrain>,
+    mut commands: Commands,
 ) {
+    for (addr, client) in &server.clients {
+        let inputs = &client.inputs;
+        if inputs.mine {
+            let res =
+                world::destroy_block(inputs.block_x, inputs.block_y, &mut commands, &mut terrain);
+            match res {
+                Ok(block) => {
+                    info!(
+                        "player {} destroyed block at ({}, {}): {:?}",
+                        addr, inputs.block_x, inputs.block_y, block.block_type
+                    );
+                }
+                Err(err) => {
+                    error!(
+                        "player {} unable to destroy block at ({}, {}): {:?}",
+                        addr, inputs.block_x, inputs.block_y, err
+                    );
+                }
+            }
+        }
+    }
+}
+
+/// Server system
+fn server_handle_messages(mut server: ResMut<Server>) {
     loop {
         // handle all messages on our socket
         match server.get_one_message() {
             Ok((client, message)) => {
-                compute_new_bodies(client, message, &mut input_map);
+                compute_new_bodies(client, message);
             }
             Err(ReceiveError::NoMessage) => {
                 // break whenever we run out of messages
@@ -232,11 +273,7 @@ fn server_handle_messages(
 
 /// Process a client's message and push new bodies to the next packet sent to the client
 /// TODO: will probably need direct World access in the future
-fn compute_new_bodies(
-    client: &mut ClientInfo,
-    message: ClientToServer,
-    input_map: &mut HashMap<SocketAddr, PlayerInput>,
-) {
+fn compute_new_bodies(client: &mut ClientInfo, message: ClientToServer) {
     // TODO: just impl Display or Debug instead
     let mut bodies_str = "".to_string();
     for body in &message.bodies {
@@ -252,6 +289,8 @@ fn compute_new_bodies(
         bodies_str
     );
 
+    let mut in_order = false;
+
     // this message is in-order
     // TODO: whenever the clients send inputs, ignore any that are out of order
     // i.e. only use the most recent input
@@ -261,11 +300,11 @@ fn compute_new_bodies(
 
         // reset its drop timer
         client.until_drop = FRAME_DIFFERENCE_BEFORE_DISCONNECT;
-    } else {
-        // message out of oder
+
+        in_order = true;
     }
 
-    // compute our responses
+    // compute our direct responses
     let mut body_elems: Vec<ServerBodyElem> = message
         .bodies
         .iter()
@@ -273,11 +312,13 @@ fn compute_new_bodies(
         .filter_map(|elem| match elem {
             ClientBodyElem::Ping => Some(ServerBodyElem::Pong(message.header.current_sequence)),
             ClientBodyElem::Input(input) => {
-                // TODO: handle player input
-                info!("server storing current inputs to input hashmap");
-                //insert the players inputs into a hashmap that is a resource
-                let icopy = input.clone();
-                input_map.insert(client.addr, icopy);
+                if in_order {
+                    info!("server inputs for client {}", client.addr);
+                    // add inputs to server
+                    client.inputs = input.clone();
+                }
+
+                // never respond directly to input bodies
                 None
             }
         })
