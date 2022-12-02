@@ -10,6 +10,12 @@ use crate::{WIN_H, WIN_W};
 use bevy::prelude::*;
 use iyes_loopless::prelude::*;
 
+// 
+pub struct NetInfo {
+    pub server_address: IpAddr,
+    pub server_port: u16,
+}
+
 /// Should be used as a global resource on the client
 #[derive(Debug)]
 struct Client {
@@ -122,6 +128,9 @@ pub struct ClientPlugin {
 
 impl Plugin for ClientPlugin {
     fn build(&self, app: &mut App) {
+        // insert network info as resource
+        app.insert_resource(NetInfo{server_address: self.server_address, server_port: self.server_port});
+
         // enter system
         app.add_enter_system(states::client::GameState::InGame, create_client);
 
@@ -189,8 +198,8 @@ impl Plugin for ClientPlugin {
     }
 }
 
-fn create_client(mut commands: Commands) {
-    let client = match Client::new(SocketAddr::from((DEFAULT_SERVER_IP, DEFAULT_SERVER_PORT))) {
+fn create_client(mut commands: Commands, net_info: Res<NetInfo>) {
+    let client = match Client::new(SocketAddr::from((net_info.server_address, net_info.server_port))) {
         Ok(s) => s,
         Err(e) => panic!("Unable to create client: {}", e),
     };

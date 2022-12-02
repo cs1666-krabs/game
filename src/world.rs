@@ -54,8 +54,7 @@ pub mod server {
 
     impl Plugin for WorldPlugin {
         fn build(&self, app: &mut App) {
-            app.add_enter_system(states::server::GameState::Running, create_world);
-
+            // server world is loaded by the save plugin. it calls create_world if nothing is loaded
             app.add_exit_system(states::server::GameState::Running, destroy_world);
         }
     }

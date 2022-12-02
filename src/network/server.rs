@@ -14,6 +14,14 @@ use std::{
 
 const MAX_CLIENTS: usize = 2; // final goal = 2, strech goal = 4
 
+// holds command line info for server creation
+pub struct ServerInfo {
+    /// port
+    pub port: u16,
+    /// save file
+    pub save_file: PathBuf,
+}
+
 /// Should be used as a global resource on the server
 struct Server {
     /// UDP socket that should be used for everything
@@ -123,6 +131,9 @@ pub struct ServerPlugin {
 
 impl Plugin for ServerPlugin {
     fn build(&self, app: &mut App) {
+        // insert server info as resource
+        app.insert_resource(ServerInfo{port: self.port, save_file: self.save_file.clone()});
+
         // add game tick
         app.add_fixed_timestep(
             std::time::Duration::from_secs_f64(1. / GAME_TICK_HZ as f64),
@@ -199,9 +210,9 @@ impl Plugin for ServerPlugin {
     }
 }
 
-fn create_server(mut commands: Commands) {
+fn create_server(mut commands: Commands, server_info: Res<ServerInfo>) {
     // TODO: use command line arguments for port and handle failure better
-    let server = match Server::new(DEFAULT_SERVER_PORT) {
+    let server = match Server::new(server_info.port) {
         Ok(s) => s,
         Err(e) => panic!("Unable to create server: {}", e),
     };

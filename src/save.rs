@@ -8,7 +8,7 @@ use std::{
 };
 
 use crate::{
-    network::BINCODE_CONFIG,
+    network::{BINCODE_CONFIG, server::ServerInfo},
     player::Player,
     states,
     world::{RenderedBlock, Terrain},
@@ -17,18 +17,11 @@ use crate::{
 
 pub const DEFAULT_SAVE_DIR: &str = "savedata";
 pub const DEFAULT_SAVE_FILE: &str = "savegame.sav";
-pub const DEFAULT_SAVE_FILE_SERVER: &str = "server.sav";
 
 pub fn default_save_path() -> PathBuf {
     Path::new(".")
         .join(DEFAULT_SAVE_DIR)
         .join(DEFAULT_SAVE_FILE)
-}
-
-pub fn default_save_path_server() -> PathBuf {
-    Path::new(".")
-        .join(DEFAULT_SAVE_DIR)
-        .join(DEFAULT_SAVE_FILE_SERVER)
 }
 
 pub mod client {
@@ -60,7 +53,10 @@ pub mod server {
 
     impl Plugin for SaveLoadPlugin {
         fn build(&self, app: &mut App) {
-            // TODO: LOAD
+            // load the server world
+            app.add_enter_system(states::server::GameState::Running, 
+                load_server.run_if_resource_exists::<ServerInfo>());
+            // save the server world every 5 seconds
             app.add_fixed_timestep(std::time::Duration::from_secs(5), "SAVE_INTERVAL");
             app.add_fixed_timestep_system(
                 "SAVE_INTERVAL",
@@ -89,7 +85,7 @@ pub struct LoadFile {
     terrain: Terrain,
 }
 
-fn save_server(terrain: Res<Terrain>) {
+fn save_server(terrain: Res<Terrain>, server_info: Res<ServerInfo>) {
     let save_file = SaveFile {
         player_coords: (0, 0), // dummy value
         terrain: terrain.as_ref(),
@@ -106,7 +102,7 @@ fn save_server(terrain: Res<Terrain>) {
             // else it was successful
 
             // open file in write-mode
-            match File::create(default_save_path_server()) {
+            match File::create(server_info.save_file.clone()) {
                 Ok(mut file) => {
                     // write the bytes to file
                     match file.write_all(&encoded_vec) {
@@ -121,6 +117,37 @@ fn save_server(terrain: Res<Terrain>) {
         }
         Err(e) => {
             error!("unable to encode terrain, {}", e);
+        }
+    }
+}
+
+/// Loads terrain from a file
+/// if file does not exist, create new world.
+pub fn load_server(
+    mut commands: Commands,
+    assets: Res<AssetServer>,
+    server_info: Res<ServerInfo>,
+) {
+    match read(server_info.save_file.clone()) {
+        Ok(encoded_vec) => {
+            // try to load the world
+            let mut decoded: LoadFile =
+                match bincode::decode_from_slice(&encoded_vec, BINCODE_CONFIG) {
+                    Ok((load, _size)) => load,
+                    Err(e) => {
+                        error!("unable to decode save file: {}", e);
+                        return;
+                    }
+                };
+            // insert new terrain
+            commands.insert_resource(decoded.terrain);
+
+            info!("loaded from file!");
+        }
+        Err(e) => {
+            error!("could not read save file, {}", e);
+            // generate world from scratch
+            crate::world::create_world(commands);
         }
     }
 }
@@ -220,7 +247,7 @@ pub fn f6_load_from_file(
             );
             commands.insert_resource(decoded.terrain);
 
-            warn!("loaded from file!");
+            info!("loaded from file!");
         }
         Err(e) => {
             error!("could not read save file, {}", e);
