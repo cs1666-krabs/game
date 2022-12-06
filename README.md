@@ -1,7 +1,19 @@
 
 # Overview
-
 This is the repository for the CS1666 game by team K*rust*y Krabs.
+
+# Usage
+Use cargo to build and run it
+- `cargo run [--release] -- [arguments]`
+
+# Arguments
+- `client --help` to see client arguments
+  - `-i <server ip address>`
+  - `-p <server port>`
+  - `-c <local client port>`
+- `server --help` to see server arguments
+  - `-f <save file>`
+  - `-p <server port>`
 
 # Group Guidelines
 1. Get commits in by _at latest_ Tuesday at noon.
@@ -30,12 +42,10 @@ In VSCode, it can be found as an extension.
 ## Movement
 - A/D: move left/right
 - Space: jump
-- F7: hold to debug block collisions (_lots_ of console spam)
 
 ## Mining
-- LMB: hold to mine block under cursor
-- RMB: instantly mine block under cursor
-- G: randomly destroy blocks in first chunk
+- LMB: mine block under cursor
+- G: mine block below you
 
 ## Debug Camera
 - Arrow keys: move free look camera
@@ -50,6 +60,7 @@ In VSCode, it can be found as an extension.
 - Ctrl+Q: quit game
 
 ## Save/Load
-- F2: dump terrain information into the console
-- F5: quicksave
-- F6: quickload
+- (server saves and loads automatically)
+- F2: dump terrain information into the console (lots of junk)
+- F2: dump basic chunk information
+

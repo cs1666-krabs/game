@@ -536,6 +536,7 @@ fn handle_messages(
 
 fn send_bodies(mut client: ResMut<Client>) {
     if client.debug_paused {
+        client.bodies.clear();
         return;
     }
 
