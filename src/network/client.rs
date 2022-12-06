@@ -50,6 +50,8 @@ impl Client {
         // we want nonblocking sockets!
         sock.set_nonblocking(true)?;
 
+        info!("bound socket: {:?}", sock);
+
         Ok(Self {
             socket: sock,
             server: server_address,

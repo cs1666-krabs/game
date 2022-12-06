@@ -67,11 +67,13 @@ impl Default for ConnectedClientInfo {
 impl Server {
     /// Binds the socket
     fn new(port: u16) -> Result<Self, std::io::Error> {
-        let addr = SocketAddr::from((DEFAULT_SERVER_IP, port));
+        let addr = SocketAddr::from(([0, 0, 0, 0], port));
         let sock = UdpSocket::bind(addr)?;
 
         // we want nonblocking sockets!
         sock.set_nonblocking(true)?;
+
+        info!("bound socket: {:?}", sock);
 
         Ok(Server {
             socket: sock,

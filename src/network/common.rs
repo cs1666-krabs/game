@@ -20,7 +20,8 @@ pub const BINCODE_CONFIG: bincode::config::Configuration = bincode::config::stan
 /// placeholders
 /// TODO: remove whenever command line arguments can be parsed
 pub const DEFAULT_SERVER_PORT: u16 = 8888u16;
-pub const DEFAULT_SERVER_IP: [u8; 4] = [127, 0, 0, 1];
+/// the default server IP that the client looks for
+pub const DEFAULT_CLIENT_SERVER_IP: [u8; 4] = [127, 0, 0, 1];
 
 /// buffer size for networking
 /// max packet size in UDP is 2^16 bytes

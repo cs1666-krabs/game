@@ -34,7 +34,7 @@ pub struct ServerArgs {
 // #[command(arg_required_else_help(true))]
 pub struct ClientArgs {
     /// Address of server
-    #[arg(short = 'i', long = "ip", default_value_t = network::DEFAULT_SERVER_IP.into())]
+    #[arg(short = 'i', long = "ip", default_value_t = network::DEFAULT_CLIENT_SERVER_IP.into())]
     pub server_ip: IpAddr,
 
     /// Port of server
